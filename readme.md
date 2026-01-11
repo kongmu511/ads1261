@@ -17,9 +17,9 @@ Using ESP32C6 and TI's ADS1261 ADC to build a **force platform for measuring gro
 - Reference: [SBAA532 - Bridge Measurements](https://www.ti.com/document-viewer/lit/html/sbaa532)
 
 ## System Design Considerations
-- **Multiplexing**: 4 channels sequential = 150-250 SPS per channel (at 600-1000 SPS system rate)
-- **Conversion Latency**: See [SBAA535 - Conversion Latency](https://www.ti.com/document-viewer/lit/html/sbaa535)
-- **Data Rate Optimization**: See [DATA_RATE_ANALYSIS.md](DATA_RATE_ANALYSIS.md)
+- **Multiplexing**: 4 channels sequential at 40 kSPS system rate = **~1000-1200 Hz per channel** (ISO 18001 compliant)
+- **Conversion Latency**: ~130 µs per sample (per SBAA535 analysis)
+- **Data Rate Optimization**: See [DATA_RATE_ANALYSIS.md](DATA_RATE_ANALYSIS.md) and [LATENCY_ANALYSIS_GRF.md](LATENCY_ANALYSIS_GRF.md)
 
 ## References
 - **TI ADS1261 Datasheet**: https://www.ti.com/document-viewer/ads1261/datasheet

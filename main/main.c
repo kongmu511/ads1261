@@ -19,7 +19,7 @@ static const char *TAG = "LoadCell";
 /* Force Platform Configuration */
 #define NUM_LOADCELLS           4
 #define PGA_GAIN                ADS1261_PGA_GAIN_128        /* 128x gain for high resolution */
-#define DATA_RATE               ADS1261_DR_600              /* 600 SPS = 150 SPS per channel (4-channel mux) */
+#define DATA_RATE               ADS1261_DR_40               /* 40 kSPS = ~1000-1200 Hz per channel (4-channel mux) - ISO 18001 compliant */
 #define SAMPLE_BUFFER_SIZE      1000                        /* Buffer for streaming measurements */
 
 /* Note: Ratiometric measurement (bridge transducers)
