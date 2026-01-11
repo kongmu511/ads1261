@@ -41,14 +41,14 @@ extern "C" {
 #define ADS1261_MUXP_AIN0       0x00
 #define ADS1261_MUXN_AIN1       0x01
 
-/* Data Rate Settings */
-#define ADS1261_DR_20           0x00
-#define ADS1261_DR_45           0x01
-#define ADS1261_DR_90           0x02
-#define ADS1261_DR_175          0x03
-#define ADS1261_DR_330          0x04
-#define ADS1261_DR_600          0x05
-#define ADS1261_DR_1000         0x06
+/* Data Rate Settings (in SPS - Samples Per Second) */
+#define ADS1261_DR_20           0x00  /* 20 SPS */
+#define ADS1261_DR_45           0x01  /* 45 SPS */
+#define ADS1261_DR_90           0x02  /* 90 SPS */
+#define ADS1261_DR_175          0x03  /* 175 SPS */
+#define ADS1261_DR_330          0x04  /* 330 SPS */
+#define ADS1261_DR_600          0x05  /* 600 SPS */
+#define ADS1261_DR_1000         0x06  /* 1000 SPS */
 
 /* Reference Selection */
 #define ADS1261_REFSEL_INT      0x00

@@ -17,21 +17,23 @@ static const char *TAG = "LoadCell";
 #define DRDY_PIN    GPIO_NUM_10
 
 /* Loadcell Configuration */
-#define NUM_LOADCELLS   4
-#define PGA_GAIN        ADS1261_PGA_GAIN_128
-#define DATA_RATE       ADS1261_DR_1000  // High data rate
+#define NUM_LOADCELLS           4
+#define PGA_GAIN                ADS1261_PGA_GAIN_128        /* 128x gain for higher resolution */
+#define DATA_RATE               ADS1261_DR_600              /* 600 SPS for high data rate */
+#define REFERENCE_VOLTAGE_MV    5000                        /* 5V external reference in mV */
 
 typedef struct {
     int32_t raw_value;
-    float voltage;
-    float weight;
+    float voltage_mv;   /* Voltage in mV */
+    float weight_kg;    /* Weight in kg */
 } loadcell_data_t;
 
-/* Calibration parameters (example values - adjust based on actual calibration) */
-static const float SCALE_FACTOR = 0.000030517578125;  // For 24-bit ADC: 5V / 2^24
-static const float REFERENCE_VOLTAGE = 5.0;            // 5V reference
-static const float ZERO_OFFSET = 0.0;
-static const float CALIBRATION_FACTOR = 1.0;           // Adjust based on loadcell calibration
+/* Calibration parameters */
+/* For 24-bit ADC with PGA_GAIN_128 and 5V reference:
+ * Scale factor = (VREF / PGA) / 2^23 = (5V / 128) / 2^23 */
+static const float SCALE_FACTOR = 0.00004577636719;  /* mV per LSB with gain 128 */
+static const float ZERO_OFFSET = 0.0;                /* Zero offset in mV - adjust based on calibration */
+static const float CALIBRATION_FACTOR = 1.0;         /* kg per mV - adjust based on loadcell calibration */
 
 static ads1261_t adc_device;
 static loadcell_data_t loadcells[NUM_LOADCELLS];
@@ -68,9 +70,10 @@ void app_main(void)
     /* Configure ADS1261 */
     ads1261_set_pga(&adc_device, PGA_GAIN);
     ads1261_set_datarate(&adc_device, DATA_RATE);
-    ads1261_set_ref(&adc_device, ADS1261_REFSEL_EXT1);  // Use external reference
+    /* Use external reference for ratiometric measurement with excitation voltage */
+    ads1261_set_ref(&adc_device, ADS1261_REFSEL_EXT1);
 
-    ESP_LOGI(TAG, "ADS1261 configured: PGA=128, High Data Rate");
+    ESP_LOGI(TAG, "ADS1261 configured: PGA=128x, DataRate=600SPS, Reference=External (Ratiometric)");
 
     /* Main measurement loop */
     int measurement_count = 0;
@@ -95,22 +98,22 @@ void app_main(void)
                 continue;
             }
 
-            /* Convert to voltage */
-            loadcells[i].voltage = (float)loadcells[i].raw_value * SCALE_FACTOR;
+            /* Convert to voltage in mV (ratiometric measurement) */
+            loadcells[i].voltage_mv = (float)loadcells[i].raw_value * SCALE_FACTOR;
 
-            /* Apply calibration to get weight (example calculation) */
-            loadcells[i].weight = (loadcells[i].voltage - ZERO_OFFSET) * CALIBRATION_FACTOR;
+            /* Apply calibration to get weight */
+            loadcells[i].weight_kg = (loadcells[i].voltage_mv - ZERO_OFFSET) * CALIBRATION_FACTOR;
 
-            ESP_LOGI(TAG, "Loadcell %d: Raw=%ld, Voltage=%.6fV, Weight=%.3fkg",
-                     i + 1, loadcells[i].raw_value, loadcells[i].voltage, loadcells[i].weight);
+            ESP_LOGI(TAG, "Loadcell %d: Raw=%ld, Voltage=%.3fmV, Weight=%.3fkg",
+                     i + 1, loadcells[i].raw_value, loadcells[i].voltage_mv, loadcells[i].weight_kg);
         }
 
         /* Print summary */
-        float total_weight = 0;
+        float total_weight_kg = 0;
         for (int i = 0; i < NUM_LOADCELLS; i++) {
-            total_weight += loadcells[i].weight;
+            total_weight_kg += loadcells[i].weight_kg;
         }
-        ESP_LOGI(TAG, "Total Weight: %.3f kg\n", total_weight);
+        ESP_LOGI(TAG, "Total Weight: %.3f kg\n", total_weight_kg);
 
         /* Wait before next measurement */
         vTaskDelay(1000 / portTICK_PERIOD_MS);  // 1 second interval
