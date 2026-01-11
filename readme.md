@@ -3,7 +3,7 @@ Using ESP32C6 and TI's ADS1261 ADC to build a **force platform for measuring gro
 ## Application: Ground Reaction Force Measurement
 - Measure vertical, anterior-posterior, and medial-lateral ground reaction forces
 - 4 differential strain gauge loadcells (Wheatstone bridge configuration)
-- **Higher data rate required**: 150-600 SPS per channel for accurate GRF capture
+- **Data rate achieved**: 1000-1200 Hz per channel (40 kSPS system rate at 4-channel multiplex)
 - **Ratiometric bridge measurement**: No need to know exact reference voltage value
 
 ## Loadcell Design - Ratiometric Bridge Measurement
@@ -47,14 +47,18 @@ Using ESP32C6 and TI's ADS1261 ADC to build a **force platform for measuring gro
 ```
 ads1261/
 ├── readme.md                          # Project overview
+├── QUICKSTART.md                      # Quick start deployment guide (START HERE)
+├── PROJECT_STATUS.md                  # Complete project status and specifications
 ├── HARDWARE_SETUP.md                  # Pin configuration and wiring guide
-├── DATA_RATE_ANALYSIS.md              # ADS1261 data rate calculations and optimization
+├── DATA_RATE_ANALYSIS.md              # ADS1261 data rate calculations
+├── LATENCY_ANALYSIS_GRF.md            # SBAA535 latency analysis for GRF
+├── calibration_tool.py                # Python tool for automated calibration
 ├── CMakeLists.txt                     # Root CMake configuration
 ├── Makefile                           # Build convenience commands
 ├── sdkconfig                          # ESP-IDF configuration
 ├── .gitignore                         # Git ignore file
 ├── main/
-│   ├── main.c                         # Main application: 4-channel loadcell reader
+│   ├── main.c                         # Main application: 4-channel GRF reader
 │   └── CMakeLists.txt                 # Main component configuration
 └── components/ads1261/
     ├── ads1261.h                      # ADS1261 driver API

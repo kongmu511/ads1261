@@ -89,8 +89,8 @@ void app_main(void)
 
     ESP_LOGI(TAG, "ADS1261 configured:");
     ESP_LOGI(TAG, "  - PGA: 128x (high resolution)");
-    ESP_LOGI(TAG, "  - Data rate: 600 SPS system");
-    ESP_LOGI(TAG, "  - Per-channel: ~150 SPS (4-channel sequential mux)");
+    ESP_LOGI(TAG, "  - Data rate: 40 kSPS system");
+    ESP_LOGI(TAG, "  - Per-channel: ~1000-1200 Hz (4-channel sequential mux)");
     ESP_LOGI(TAG, "  - Reference: External (ratiometric - no Vref value needed)");
     ESP_LOGI(TAG, "");
     ESP_LOGI(TAG, "Ground Reaction Force Measurement Starting...");
