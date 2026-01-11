@@ -16,32 +16,44 @@ static const char *TAG = "LoadCell";
 #define CS_PIN      GPIO_NUM_9
 #define DRDY_PIN    GPIO_NUM_10
 
-/* Loadcell Configuration */
+/* Force Platform Configuration */
 #define NUM_LOADCELLS           4
-#define PGA_GAIN                ADS1261_PGA_GAIN_128        /* 128x gain for higher resolution */
-#define DATA_RATE               ADS1261_DR_600              /* 600 SPS for high data rate */
-#define REFERENCE_VOLTAGE_MV    5000                        /* 5V external reference in mV */
+#define PGA_GAIN                ADS1261_PGA_GAIN_128        /* 128x gain for high resolution */
+#define DATA_RATE               ADS1261_DR_600              /* 600 SPS = 150 SPS per channel (4-channel mux) */
+#define SAMPLE_BUFFER_SIZE      1000                        /* Buffer for streaming measurements */
+
+/* Note: Ratiometric measurement (bridge transducers)
+ * - Do NOT need to know exact reference voltage value
+ * - Bridge output is naturally ratiometric to excitation voltage
+ * - Any voltage variations cancel out in the ratio
+ * - Sensitivity is determined by bridge gauge factor, not Vref */
 
 typedef struct {
-    int32_t raw_value;
-    float voltage_mv;   /* Voltage in mV */
-    float weight_kg;    /* Weight in kg */
-} loadcell_data_t;
+    int32_t raw_adc;       /* Raw 24-bit ADC value */
+    float normalized;      /* Normalized to ±1.0 range (ratiometric) */
+    float force_newtons;   /* Measured force in Newtons */
+    uint32_t timestamp_us; /* Measurement timestamp in microseconds */
+} force_sample_t;
 
-/* Calibration parameters */
-/* For 24-bit ADC with PGA_GAIN_128 and 5V reference:
- * Scale factor = (VREF / PGA) / 2^23 = (5V / 128) / 2^23 */
-static const float SCALE_FACTOR = 0.00004577636719;  /* mV per LSB with gain 128 */
-static const float ZERO_OFFSET = 0.0;                /* Zero offset in mV - adjust based on calibration */
-static const float CALIBRATION_FACTOR = 1.0;         /* kg per mV - adjust based on loadcell calibration */
+/* Calibration parameters - ratiometric approach */
+/* No need for SCALE_FACTOR since we work with normalized ratio
+ * Only need: zero offset (tare) and force sensitivity calibration */
+static const float ZERO_OFFSET_RAW = 0.0;              /* ADC offset - measure with no load */
+static const float FORCE_SENSITIVITY = 1.0;            /* N per normalized unit - calibrate with known load */
+static const int32_t ADC_MAX_VALUE = 0x7FFFFF;         /* Max 24-bit signed: 2^23-1 */
+static const int32_t ADC_MIN_VALUE = -0x800000;        /* Min 24-bit signed: -2^23 */
 
 static ads1261_t adc_device;
-static loadcell_data_t loadcells[NUM_LOADCELLS];
+static force_sample_t force_samples[NUM_LOADCELLS];  /* Latest samples from each channel */
+static force_sample_t sample_buffer[SAMPLE_BUFFER_SIZE];
+static uint16_t buffer_index = 0;
+static uint32_t sample_count = 0;
 
 void app_main(void)
 {
-    ESP_LOGI(TAG, "Starting ESP32C6 Loadcell Measurement System");
-    ESP_LOGI(TAG, "Using ADS1261 ADC with %d loadcells", NUM_LOADCELLS);
+    ESP_LOGI(TAG, "ESP32C6 Force Platform - Ground Reaction Force Measurement");
+    ESP_LOGI(TAG, "4-channel loadcell bridge measurement system (ratiometric)");
+    ESP_LOGI(TAG, "Max data rate: 10 kSPS system (600 SPS per channel with 4-ch mux)");
 
     /* Configure SPI bus */
     spi_bus_config_t spi_cfg = {
@@ -70,54 +82,72 @@ void app_main(void)
     /* Configure ADS1261 */
     ads1261_set_pga(&adc_device, PGA_GAIN);
     ads1261_set_datarate(&adc_device, DATA_RATE);
-    /* Use external reference for ratiometric measurement with excitation voltage */
+    /* Use external reference for ratiometric bridge measurement
+     * Note: With ratiometric measurement, reference voltage variations don't affect accuracy
+     * The bridge output ratio is independent of absolute Vref value */
     ads1261_set_ref(&adc_device, ADS1261_REFSEL_EXT1);
 
-    ESP_LOGI(TAG, "ADS1261 configured: PGA=128x, DataRate=600SPS, Reference=External (Ratiometric)");
+    ESP_LOGI(TAG, "ADS1261 configured:");
+    ESP_LOGI(TAG, "  - PGA: 128x (high resolution)");
+    ESP_LOGI(TAG, "  - Data rate: 600 SPS system");
+    ESP_LOGI(TAG, "  - Per-channel: ~150 SPS (4-channel sequential mux)");
+    ESP_LOGI(TAG, "  - Reference: External (ratiometric - no Vref value needed)");
+    ESP_LOGI(TAG, "");
+    ESP_LOGI(TAG, "Ground Reaction Force Measurement Starting...");
 
     /* Main measurement loop */
     int measurement_count = 0;
     while (1) {
-        measurement_count++;
-        ESP_LOGI(TAG, "=== Measurement %d ===", measurement_count);
-
-        /* Read all four loadcell channels */
-        for (int i = 0; i < NUM_LOADCELLS; i++) {
+        /* Read all four loadcell channels in sequence */
+        for (int ch = 0; ch < NUM_LOADCELLS; ch++) {
             /* Configure multiplexer for differential measurement */
-            uint8_t muxp = i * 2;
-            uint8_t muxn = muxp + 1;
+            uint8_t muxp = ch * 2;      /* Positive: AIN0, AIN2, AIN4, AIN6 */
+            uint8_t muxn = muxp + 1;    /* Negative: AIN1, AIN3, AIN5, AIN7 */
             ads1261_set_mux(&adc_device, muxp, muxn);
 
             /* Start conversion */
             ads1261_start_conversion(&adc_device);
 
-            /* Read ADC value */
-            ret = ads1261_read_adc(&adc_device, &loadcells[i].raw_value);
+            /* Read ADC value (24-bit signed) */
+            ret = ads1261_read_adc(&adc_device, &force_samples[ch].raw_adc);
             if (ret != ESP_OK) {
-                ESP_LOGE(TAG, "Failed to read loadcell %d", i + 1);
+                ESP_LOGE(TAG, "Failed to read loadcell %d", ch + 1);
                 continue;
             }
 
-            /* Convert to voltage in mV (ratiometric measurement) */
-            loadcells[i].voltage_mv = (float)loadcells[i].raw_value * SCALE_FACTOR;
+            /* Convert raw ADC to normalized ratiometric value (±1.0)
+             * With ratiometric measurement and external reference:
+             * normalized = raw_adc / ADC_MAX_VALUE
+             * No need for VREF scaling - bridge is naturally ratiometric */
+            force_samples[ch].normalized = (float)force_samples[ch].raw_adc / ADC_MAX_VALUE;
 
-            /* Apply calibration to get weight */
-            loadcells[i].weight_kg = (loadcells[i].voltage_mv - ZERO_OFFSET) * CALIBRATION_FACTOR;
+            /* Apply zero offset (tare) calibration */
+            force_samples[ch].normalized -= (ZERO_OFFSET_RAW / ADC_MAX_VALUE);
 
-            ESP_LOGI(TAG, "Loadcell %d: Raw=%ld, Voltage=%.3fmV, Weight=%.3fkg",
-                     i + 1, loadcells[i].raw_value, loadcells[i].voltage_mv, loadcells[i].weight_kg);
+            /* Convert to force using sensitivity calibration
+             * FORCE_SENSITIVITY = measured_force / normalized_adc_value
+             * This must be calibrated with known loads during setup */
+            force_samples[ch].force_newtons = force_samples[ch].normalized * FORCE_SENSITIVITY;
+
+            force_samples[ch].timestamp_us = esp_timer_get_time();
+
+            sample_count++;
         }
 
-        /* Print summary */
-        float total_weight_kg = 0;
-        for (int i = 0; i < NUM_LOADCELLS; i++) {
-            total_weight_kg += loadcells[i].weight_kg;
+        /* Log current frame (all 4 channels) */
+        if (sample_count % 4 == 0) {
+            float total_force = 0;
+            ESP_LOGI(TAG, "[Frame %lu] Force readings (N):", sample_count / 4);
+            for (int ch = 0; ch < NUM_LOADCELLS; ch++) {
+                ESP_LOGI(TAG, "  Ch%d: %.2f N (raw=%06lx, norm=%.4f)",
+                        ch + 1,
+                        force_samples[ch].force_newtons,
+                        force_samples[ch].raw_adc & 0xFFFFFF,
+                        force_samples[ch].normalized);
+                total_force += force_samples[ch].force_newtons;
+            }
+            ESP_LOGI(TAG, "  Total: %.2f N", total_force);
         }
-        ESP_LOGI(TAG, "Total Weight: %.3f kg\n", total_weight_kg);
-
-        /* Wait before next measurement */
-        vTaskDelay(1000 / portTICK_PERIOD_MS);  // 1 second interval
-    }
 
     /* Cleanup */
     ads1261_deinit(&adc_device);

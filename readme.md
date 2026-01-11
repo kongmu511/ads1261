@@ -1,20 +1,37 @@
-Using ESP32C6 and TI's ADS1261 ADC to measure four loadcells.
+Using ESP32C6 and TI's ADS1261 ADC to build a **force platform for measuring ground reaction force** (human biomechanics testing).
 
-## design target
-- using ads1261 measure four loadcells as highest sample rate, need calculate multiplex speed and latency. 
-https://www.ti.com/document-viewer/lit/html/sbaa535
-See [DATA_RATE_ANALYSIS.md](DATA_RATE_ANALYSIS.md) for detailed calculations: **40 kSPS maximum** → **10 kSPS per channel** with 4-channel multiplexing.
+## Application: Ground Reaction Force Measurement
+- Measure vertical, anterior-posterior, and medial-lateral ground reaction forces
+- 4 differential strain gauge loadcells (Wheatstone bridge configuration)
+- **Higher data rate required**: 150-600 SPS per channel for accurate GRF capture
+- **Ratiometric bridge measurement**: No need to know exact reference voltage value
 
-## Loadcell Design
-- Use ADS1261's differential mode to connect loadcells to differential inputs
-- Use excitation voltage as external reference voltage (ratiometric measurement) .https://www.ti.com/document-viewer/lit/html/sbaa532
-- Configure PGA gain to 128 with high output data rate
+## Loadcell Design - Ratiometric Bridge Measurement
+- Use ADS1261's differential mode for Wheatstone bridge (strain gauge transducers)
+- **Ratiometric measurement** with external reference voltage
+- **Key advantage**: Bridge output is naturally ratiometric to excitation voltage
+  - Variations in reference voltage automatically cancel out
+  - Measurement accuracy doesn't depend on knowing exact Vref value
+  - Only need to calibrate zero offset (tare) and force sensitivity
+- Configure PGA gain to 128 with 600+ SPS data rate for force platform applications
+- Reference: [SBAA532 - Bridge Measurements](https://www.ti.com/document-viewer/lit/html/sbaa532)
+
+## System Design Considerations
+- **Multiplexing**: 4 channels sequential = 150-250 SPS per channel (at 600-1000 SPS system rate)
+- **Conversion Latency**: See [SBAA535 - Conversion Latency](https://www.ti.com/document-viewer/lit/html/sbaa535)
+- **Data Rate Optimization**: See [DATA_RATE_ANALYSIS.md](DATA_RATE_ANALYSIS.md)
 
 ## References
-- TI's ADS1261 datasheet https://www.ti.com/document-viewer/ads1261/datasheet
-- TI Precision Lab's GitHub repositories. https://github.com/TexasInstruments/precision-adc-examples/tree/main/devices/ads1261
-- ADS1261 sample code
-- TI's Data converters forum: https://e2e.ti.com/support/data-converters-group/data-converters/f/data-converters-forum
+- **TI ADS1261 Datasheet**: https://www.ti.com/document-viewer/ads1261/datasheet
+- **SBAA532 - Basic Guide to Bridge Measurements**: https://www.ti.com/document-viewer/lit/html/sbaa532
+  - Wheatstone bridge fundamentals
+  - Ratiometric measurement explanation
+  - Why reference voltage variation doesn't affect accuracy
+- **SBAA535 - Conversion Latency & System Cycle Time**: https://www.ti.com/document-viewer/lit/html/sbaa535
+  - Multiplexing analysis for multi-channel systems
+  - Settling time calculations
+- **TI Precision Lab Examples**: https://github.com/TexasInstruments/precision-adc-examples/tree/main/devices/ads1261
+- **TI E2E Forum**: https://e2e.ti.com/support/data-converters-group/data-converters/f/data-converters-forum
 
 ## Hardware and Toolchain
 
