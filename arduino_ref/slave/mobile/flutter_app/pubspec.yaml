@@ -1,0 +1,23 @@
+name: zplate_mobile
+description: ZPlate mobile app (Flutter) - WiFi management + real-time streaming
+publish_to: "none"
+version: 0.0.1
+environment:
+  sdk: ">=2.18.0 <3.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  syncfusion_flutter_charts: ^20.2.49
+  wifi_iot: ^0.3.26
+  permission_handler: ^10.4.0
+
+  # For safe list operations
+  collection: ^1.17.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true

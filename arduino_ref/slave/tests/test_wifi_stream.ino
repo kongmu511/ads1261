@@ -191,10 +191,8 @@ void setup() {
   setupWiFi();
   setupTimer();
   
-  // Auto-start for testing  
-  streamingEnabled = true;
-  Serial.println("\n✓ Ready! AUTO-STREAMING (no START command needed)");
-  Serial.println("Commands: 'E' = End, 'T' = Tare");
+  Serial.println("\n✓ Ready! Waiting for START command from PC...");
+  Serial.println("Commands: 'S' = Start, 'E' = End, 'T' = Tare");
 }
 
 void loop() {

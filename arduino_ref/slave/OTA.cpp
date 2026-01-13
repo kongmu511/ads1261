@@ -1,4 +1,8 @@
-#include "OTA.h"
+#include "ota.h"
+#include "ads1261.h"
+#include "ble_commands.h"
+
+extern BleCommandHandler bleCommands;
 
 static void rebootEspWithReason(String reason) {
   Serial.println(reason);
@@ -33,7 +37,13 @@ void MyCallbacks::onWrite(BLECharacteristic *pCharacteristic) {
   int len = value.length();
   pData = pCharacteristic->getData();
   if (pData != NULL) {
-
+    // Check if it's a force plate command (0x01-0x05)
+    if (pData[0] <= 0x05) {
+      bleCommands.processCommand(pData, len);
+      return;
+    }
+    
+    // OTA firmware update commands
     if (pData[0] == 0xFB) {
       int pos = pData[1];
       for (int x = 0; x < len - 2; x++) {

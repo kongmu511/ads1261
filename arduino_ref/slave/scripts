@@ -1,0 +1,63 @@
+I # Complete ESP32-C6 Build, Upload, and Debug Automation
+# Compiles, uploads, resets, and monitors serial output
+
+param(
+    [string]$Port = "COM10",
+    [string]$Baud = "115200",
+    [string]$SketchPath = "D:\github\ads1261\arduino_ref\slave"
+)
+
+$cliPath = "C:\Users\zhaoj\AppData\Local\Arduino15\cli\arduino-cli.exe"
+
+Write-Host "========================================" -ForegroundColor Cyan
+Write-Host "ESP32-C6 Build, Upload & Debug" -ForegroundColor Cyan
+Write-Host "========================================" -ForegroundColor Cyan
+Write-Host ""
+
+# Step 1: Compile
+Write-Host "[1/4] Compiling sketch..." -ForegroundColor Cyan
+& $cliPath compile --fqbn esp32:esp32:esp32c6 $SketchPath 2>&1
+
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "[ERROR] Compilation failed!" -ForegroundColor Red
+    exit 1
+}
+Write-Host "[OK] Compilation successful!" -ForegroundColor Green
+Write-Host ""
+
+# Step 2: Upload
+Write-Host "[2/4] Uploading to ESP32-C6..." -ForegroundColor Cyan
+& $cliPath upload --fqbn esp32:esp32:esp32c6 -p $Port $SketchPath 2>&1
+
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "[ERROR] Upload failed! Check: COM port, wiring, board power." -ForegroundColor Red
+    exit 1
+}
+Write-Host "[OK] Upload successful!" -ForegroundColor Green
+Write-Host ""
+
+# Step 3: Reset board
+Write-Host "[3/4] Resetting board..." -ForegroundColor Cyan
+Start-Sleep -Milliseconds 500
+
+try {
+    $port = New-Object System.IO.Ports.SerialPort $Port, $Baud, 'None', 8, 'One'
+    $port.Open()
+    $port.DtrEnable = $false
+    $port.RtsEnable = $true
+    Start-Sleep -Milliseconds 100
+    $port.DtrEnable = $true
+    $port.RtsEnable = $false
+    Start-Sleep -Milliseconds 100
+    $port.Close()
+    Write-Host "[OK] Board reset complete!" -ForegroundColor Green
+} catch {
+    Write-Host "[WARNING] Auto-reset may not have worked. Press RESET button if needed." -ForegroundColor Yellow
+}
+
+Write-Host ""
+
+# Step 4: Serial Monitor
+Write-Host "[4/4] Opening Serial Monitor (Ctrl+C to exit)..." -ForegroundColor Cyan
+Write-Host ""
+& $cliPath monitor -p $Port -c baudrate=$Baud
