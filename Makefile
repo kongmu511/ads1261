@@ -1,5 +1,5 @@
 PYTHON = python3
-PORT ?= /dev/ttyUSB0
+PORT ?= /dev/tty.usbmodem14101
 BAUD ?= 921600
 
 .PHONY: build flash monitor clean calibrate config plot help all
@@ -18,17 +18,24 @@ help:
 	@echo "make calibrate-test  - Test calibration tool"
 	@echo ""
 	@echo "Optional: PORT=/dev/ttyACM0 BAUD=115200"
+	@echo "For macOS, typically: PORT=/dev/tty.usbmodem1*, example: PORT=/dev/tty.usbmodem14101"
+	@echo "Find your port with: ls /dev/tty.usbmodem*"
 
 build:
 	idf.py build
 
 flash: build
+	@echo "Flashing to port: $(PORT)"
+	@echo "If the port is not found, connect your ESP32 and run 'ls /dev/tty.usbmodem*' to find the correct port"
 	idf.py -p $(PORT) flash
 
 monitor:
+	@echo "Connecting to port: $(PORT)"
 	idf.py -p $(PORT) monitor --baud $(BAUD)
 
 flash-monitor: build
+	@echo "Flashing to port: $(PORT)"
+	@echo "If the port is not found, connect your ESP32 and run 'ls /dev/tty.usbmodem*' to find the correct port"
 	idf.py -p $(PORT) build flash monitor --baud $(BAUD)
 
 plot:

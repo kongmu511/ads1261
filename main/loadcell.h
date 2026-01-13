@@ -134,6 +134,16 @@ esp_err_t loadcell_deinit(loadcell_t *device);
 esp_err_t loadcell_read(loadcell_t *device);
 
 /**
+ * Switch to a specific channel
+ * 
+ * @param[in] device    Loadcell device handle
+ * @param[in] channel   Channel index (0-3)
+ * 
+ * @return ESP_OK on success
+ */
+esp_err_t loadcell_switch_channel(loadcell_t *device, uint8_t channel);
+
+/**
  * Read single channel
  * 
  * @param[in] device        Loadcell device handle
@@ -231,6 +241,15 @@ esp_err_t loadcell_reset_stats(loadcell_t *device, uint8_t channel);
 /* ============================================================================
  * Debug/Utility Functions
  * ============================================================================ */
+
+/**
+ * @brief Run diagnostic on the ADS1261 communication
+ * 
+ * @param[in] device Loadcell device handle
+ * 
+ * @return ESP_OK if all diagnostics pass
+ */
+esp_err_t loadcell_diagnostic(loadcell_t *device);
 
 /**
  * Print calibration info for all channels

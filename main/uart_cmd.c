@@ -10,8 +10,6 @@
 #include "esp_log.h"
 #include "uart_cmd.h"
 
-static const char *TAG = "UART_CMD";
-
 #define CMD_BUFFER_SIZE 256
 #define MAX_ARGS 10
 
@@ -245,6 +243,23 @@ static void cmd_info(int argc, char *argv[])
     loadcell_print_calib_info(g_device);
 }
 
+static void cmd_diag(int argc, char *argv[])
+{
+    if (!g_device) {
+        printf("Device not initialized\n");
+        return;
+    }
+
+    printf("\n=== ADS1261 Diagnostic ===\n");
+    esp_err_t ret = loadcell_diagnostic(g_device);
+    if (ret == ESP_OK) {
+        printf("Diagnostic completed successfully.\n");
+    } else {
+        printf("Diagnostic completed with errors.\n");
+    }
+    printf("=========================\n");
+}
+
 static void cmd_reset_calib(int argc, char *argv[])
 {
     if (!g_device) {
@@ -295,6 +310,7 @@ static const cmd_entry_t commands[] = {
     {"stats",       cmd_stats,        "Show channel statistics"},
     {"raw",         cmd_raw,          "Show raw ADC values"},
     {"info",        cmd_info,         "Show calibration info"},
+    {"diag",        cmd_diag,         "Hardware diagnostic - check pin connections"},
     {"rst_stats",   cmd_reset_stats,  "Reset statistics - usage: rst_stats <ch>"},
     {"rst_calib",   cmd_reset_calib,  "Reset calibration - usage: rst_calib <ch>"},
     {NULL, NULL, NULL}
